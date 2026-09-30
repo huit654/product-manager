@@ -1,0 +1,32 @@
+{
+  "products": [
+    {
+      "id": "1",
+      "name": "Riz local 25kg",
+      "category": "Céréales",
+      "price": 15000,
+      "stock": 12
+    },
+    {
+      "id": "3",
+      "name": "Savon artisanal",
+      "category": "Hygiène",
+      "price": 500,
+      "stock": 30
+    },
+    {
+      "name": "Coca Cola",
+      "category": "Boissons",
+      "price": 1500,
+      "stock": 28,
+      "id": "MsoU0aP"
+    },
+    {
+      "name": "Pagne(Chigan)",
+      "category": "Autres",
+      "price": 10000,
+      "stock": 70,
+      "id": "1L-vSrx"
+    }
+  ]
+}
