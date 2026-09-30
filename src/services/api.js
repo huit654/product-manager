@@ -1,66 +1,74 @@
-// URL de base de l'API. Change cette valeur (ou ajoute un .env avec VITE_API_URL)
-// pour pointer vers ton vrai backend plus tard.
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import seed from '../../db.json'
 
-// Petit utilitaire pour transformer une réponse fetch en erreur exploitable
-async function handleResponse(res) {
-  if (!res.ok) {
-    let message = `Erreur ${res.status}`
-    try {
-      const data = await res.json()
-      message = data.message || message
-    } catch {
-      // corps de réponse vide ou non-JSON, on garde le message par défaut
-    }
-    throw new Error(message)
+const STORAGE_KEY = 'product-manager:products'
+
+// Petite pause pour garder un comportement asynchrone comme avec un vrai backend
+const delay = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function readProducts() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {
+    // localStorage indisponible ou données corrompues : on repart des données initiales
   }
-  // 204 No Content (souvent utilisé par DELETE) n'a pas de corps
-  if (res.status === 204) return null
-  return res.json()
+  const initial = seed.products ?? []
+  writeProducts(initial)
+  return initial
+}
+
+function writeProducts(products) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(products))
+  } catch {
+    // ignore (mode privé, quota dépassé...)
+  }
 }
 
 export const productsApi = {
-  // GET /products — accepte des query params pour la recherche/filtre
+  // Accepte la recherche (nom, partielle) et le filtre par catégorie
   async getAll({ search = '', category = '' } = {}) {
-    const params = new URLSearchParams()
-    if (search) params.set('name_like', search) // json-server: recherche partielle
-    if (category) params.set('category', category)
-
-    const res = await fetch(`${API_URL}/products?${params.toString()}`)
-    return handleResponse(res)
+    await delay()
+    let products = readProducts()
+    if (search) {
+      const term = search.toLowerCase()
+      products = products.filter((p) => String(p.name).toLowerCase().includes(term))
+    }
+    if (category) {
+      products = products.filter((p) => p.category === category)
+    }
+    return products
   },
 
-  // GET /products/:id
   async getOne(id) {
-    const res = await fetch(`${API_URL}/products/${id}`)
-    return handleResponse(res)
+    await delay()
+    const product = readProducts().find((p) => String(p.id) === String(id))
+    if (!product) throw new Error('Erreur 404')
+    return product
   },
 
-  // POST /products
   async create(product) {
-    const res = await fetch(`${API_URL}/products`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(product)
-    })
-    return handleResponse(res)
+    await delay()
+    const products = readProducts()
+    const created = { ...product, id: Date.now() }
+    writeProducts([...products, created])
+    return created
   },
 
-  // PATCH /products/:id (mise à jour partielle)
   async update(id, updates) {
-    const res = await fetch(`${API_URL}/products/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    })
-    return handleResponse(res)
+    await delay()
+    const products = readProducts()
+    const index = products.findIndex((p) => String(p.id) === String(id))
+    if (index === -1) throw new Error('Erreur 404')
+    const updated = { ...products[index], ...updates }
+    products[index] = updated
+    writeProducts(products)
+    return updated
   },
 
-  // DELETE /products/:id
   async remove(id) {
-    const res = await fetch(`${API_URL}/products/${id}`, {
-      method: 'DELETE'
-    })
-    return handleResponse(res)
+    await delay()
+    writeProducts(readProducts().filter((p) => String(p.id) !== String(id)))
+    return null
   }
 }
